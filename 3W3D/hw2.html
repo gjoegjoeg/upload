@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+
+#info {
+  position: absolute;
+  top: 2%;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00;
+}
+
+body {
+  overflow: hidden;
+}
+
+
+</style>
+</head>
+
+<body> 
+  <div id="info"> Hw2 <a href="javascript:shiftCamera()">camera</a>
+  <br>
+  <button id="tView" style="width:20%">Toggle Turn</button>
+  
+<input type=range min=0 max=1 step=0.1 id='intensity'> intensity <br>
+  
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/84/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js">
+
+
+</script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+
+<script>
+class Light{
+	constructor(x, y, z){
+  	let geometry = new THREE.CylinderBufferGeometry( 10, 10, 20, 32, 32, 32, true);
+		let material = new THREE.MeshPhongMaterial( {color: 0xffffff, side: 2});
+    
+		this.lampshade = new THREE.Mesh( geometry, material );
+    //this.lampshade.material.opacity = 0.1;
+    scene.add(this.lampshade); 
+    this.light = new THREE.PointLight(0xffffff, 1,200);
+    this.pos = this.light.position;
+    this.pos.set(x, y, z);
+    this.lampshade.position.copy(this.pos)
+    lights.push(this.light);
+    scene.add(this.light);
+    
+  }
+}
+
+class SpotLight{
+constructor(x, y, z, target){
+		
+	  this.spotLight = new THREE.SpotLight( 0xffffff, 2, 170, Math.PI/6, 0.4, 1);
+    this.spotLight.position.set( x, y, z );
+    this.spotLight.target = target;
+    spotLights.push(this.spotLight);
+    scene.add( this.spotLight );
+    
+    
+    let geometry = new THREE.CylinderBufferGeometry( 5, 10, 20, 4, 32, 32, true);
+		let material = new THREE.MeshPhongMaterial( {color: 0xffffff, side: 2});
+    
+		this.lampshade = new THREE.Mesh( geometry, material );
+    this.lampshade.rotation.x = -Math.PI/2;
+    var rLampshade = new THREE.Object3D();
+    rLampshade.position.set(x, y, z);
+    rLampshade.add(this.lampshade);
+    rLampshade.lookAt(target.position);
+    scene.add(rLampshade);
+    
+  }
+}
+class Monitor{
+	constructor(x1,y1,z1,x2,y2,z2){
+  	this.camera = new THREE.PerspectiveCamera(60, 1, 1, 1000);
+  	this.camera.position.set(x1,y1,z1);
+  	this.camera.lookAt(new THREE.Vector3(x2,y2,z2));
+    cameras.push(this.camera);
+    
+    this.monitor = new THREE.Object3D();
+    var geometry = new THREE.BoxGeometry( 10, 10, 20 );
+		var material = new THREE.MeshPhongMaterial({color:0x333333});
+		var cube = new THREE.Mesh( geometry, material );
+    cube.position.set(0, 0, -13);
+    this.monitor.add(cube);
+    
+    var geometry1 = new THREE.CylinderGeometry( 3, 3, 6 ,32);
+		var material1 = new THREE.MeshPhongMaterial({color:0x333333});
+		var cylinder = new THREE.Mesh( geometry1, material1 );
+    cylinder.rotation.x = Math.PI/2;
+    cylinder.position.set(0, 0, -3)
+    this.monitor.add(cylinder);
+    
+    this.monitor.position.set(x1,y1,z1);
+    this.monitor.lookAt(new THREE.Vector3(x2,y2,z2));
+		scene.add( this.monitor );
+  }
+}
+
+var camera, scene, renderer,controls;
+var lightsOff = false;
+var lights = [], spotLights = [];
+var cameras = [], nowCamera=0;
+
+init();
+animate();
+
+$('#intensity').change ( function() {
+	for(let i=0; i<lights.length;i++){
+    	lights[i].intensity = $(this).val();
+    }
+})
+
+$('#tView').click(function() {
+//  toggleCamera();
+	lightsOff = !lightsOff;
+  if (lightsOff) {
+  	for(let i=0; i<lights.length;i++){
+    	lights[i].intensity = 0;
+    }
+    for(let i=0; i<spotLights.length;i++){
+    	spotLights[i].intensity = 0;
+    }
+  } else {
+  	for(let i=0; i<lights.length;i++){
+    	lights[i].intensity = 0.5;
+    }
+	for(let i=0; i<spotLights.length;i++){
+    	spotLights[i].intensity = 2;
+    }
+  }
+});
+
+
+function shiftCamera() {
+	
+  nowCamera++;
+  nowCamera%=cameras.length;
+}
+
+
+function setWalls(){
+	let wall = buildWall(10, 250, 295, 175);
+  wall = buildWall(10, 250, 295, -175);
+  wall = buildWall(600, 10, 0, 295);
+  wall = buildWall(10, 600, -295, 0);
+  wall = buildWall(600, 10, 0, -295);
+  wall = buildWall(10, 480, 95, 0);
+  wall = buildWall(160, 10, 15, 0);
+  wall = buildWall(160, 10, -215, 0);
+  //wall = buildWall( , , , );
+}
+
+function buildWall(x, z, posx, posz){
+	let geometry = new THREE.BoxGeometry( x, 100, z );
+	let material = new THREE.MeshPhongMaterial( {color: 0xffffff} );
+	let wall = new THREE.Mesh( geometry, material );
+  wall.position.set(posx, 50, posz);
+	scene.add(wall);
+}
+function makeFloor(){
+	let loader = new THREE.TextureLoader();
+  loader.crossOrigin = '';
+  texture = loader.load('https://i.imgur.com/5QAgcgX.jpg?2');
+  texture.repeat.set (15,15);
+  texture.wrapS = texture.wrapT = true;
+
+  let floor = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshPhongMaterial({
+    side: THREE.DoubleSide,
+    map: texture
+  }))
+  scene.add(floor)
+  floor.rotation.x = -Math.PI / 2;
+}
+function makePaint(x, y, z, radius){
+	var paint = new THREE.Mesh(new THREE.PlaneGeometry(57.0, 71.3), new THREE.MeshPhongMaterial({color: 0x00ffff}));
+  scene.add(paint)
+  paint.position.set (x, y, z); // solves z-fighting...
+  paint.rotation.y = radius;
+  return paint;
+}
+function setChairs(){
+  let chair = buildChair(-175, 150);
+  chair.rotation.y = Math.PI/2;
+  chair = buildChair(-75, 150);
+  chair.rotation.y = Math.PI/2;
+  chair = buildChair(-175, -150);
+  chair.rotation.y = Math.PI/2;
+  chair = buildChair(-75, -150);
+  chair.rotation.y = Math.PI/2;
+}
+function buildChair(x, z){
+  let chair = new THREE.Object3D();
+	let material = new THREE.MeshPhongMaterial( {color: 0xffffff} );
+	let part1 = new THREE.Mesh( new THREE.BoxGeometry( 60, 5, 20 ), material );
+  part1.position.set(0, 17.5, 0);
+  chair.add(part1);
+  let part2 = new THREE.Mesh( new THREE.BoxGeometry( 5, 20, 20 ), material );
+  part2.position.set(27.5, 10, 0);
+  chair.add(part2);
+  let part3 = part2.clone();
+  part2.position.set(-27.5, 10, 0);
+  chair.add(part3);
+  chair.position.set(x, 0, z);
+  scene.add(chair);
+  return chair;
+} 
+function init() {
+
+  renderer = new THREE.WebGLRenderer({
+    antialias: true
+  });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+
+  document.body.appendChild(renderer.domElement);
+
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+  camera.position.y = 700;
+  camera.position.z = 300;
+	cameras.push(camera);
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  
+  scene = new THREE.Scene();
+ 
+  /*let gridXZ = new THREE.GridHelper(600, 60, 'red', 'white');
+  scene.add(gridXZ);*/
+  ////////////////////////
+  let directionalLight = new THREE.DirectionalLight( 0xffffff, 0.5 );
+	scene.add( directionalLight );	
+  setWalls();
+  setChairs();
+  makeFloor();
+  
+  //light = new Light(x, y, z);
+  var light1 = new Light(-50, 100, 150);
+  var light2 = new Light(-175, 100, 150);
+  var light3 = new Light(-50, 100, -150);
+  var light4 = new Light(-175, 100, -150);
+  var light5 = new Light(200, 100, 150);
+  var light6 = new Light(200, 100, -150);
+  
+  //paint = makePaint(x, y, z, rotation.y);
+	var paint1 = makePaint(101, 50, 150, Math.PI/2);
+  var paint2 = makePaint(101, 50, -150, Math.PI/2);
+  var paint3 = makePaint(89, 50, 150, -Math.PI/2);
+  var paint4 = makePaint(89, 50, -150, -Math.PI/2);
+  var paint5 = makePaint(-289, 50, 150, Math.PI/2);
+  var paint6 = makePaint(-289, 50, -150, Math.PI/2);
+  
+  //spotLight = new SpotLight(x, y, z, target);
+  var spotLight1 = new SpotLight(200, 100, 100, paint1);
+  var spotLight2 = new SpotLight(200, 100, -100, paint2);
+  var spotLight3 = new SpotLight(-11, 100, 150, paint3);
+  var spotLight4 = new SpotLight(-11, 100, -150, paint4);
+  var spotLight5 = new SpotLight(-195, 100, 150, paint5);
+  var spotLight6 = new SpotLight(-195, 100, -150, paint6);
+  
+  //camera = new Monitor(x1, y1, z1, x2, y2, z2);
+  var camera1 = new Monitor(-270, 100, 270, 200, 50, 0);
+  var camera2 = new Monitor(-270, 100, -270, 200, 50, 0);
+  var camera3 = new Monitor(270, 100, 270, 200, 50, -250);
+  var camera4 = new Monitor(270, 100, -270, 200, 50, 250);
+  ///////////////////////
+}
+function animate() {
+  controls.update();
+  
+  window.addEventListener('resize',onWindowResize,false);
+  requestAnimationFrame(animate);
+  
+  renderer.render(scene, cameras[nowCamera]);
+  
+}
+
+function onWindowResize(){
+  var width = window.innerWidth;
+  var height = window.innerHeight;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+}
+window.focus();
+
+</script>
+</body>
+
+</html>

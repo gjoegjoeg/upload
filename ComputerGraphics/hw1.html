@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+<style>
+#bt1{
+  position:absolute;
+  top:10vw;
+  left:30vw;
+  width:100px;
+}#bt2{
+  position:absolute;
+  top:10vw;
+  left:55vw;
+  width:100px;
+}
+
+</style>
+</head>
+
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/84/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+
+<div><input type="button" id="bt1" value="ToggleTurn"></div>
+<div><input type="button" id="bt2" value="Analog"></div>
+ 
+<script>
+var renderer, camera, controls, scene, axes;
+var obj3d, cube, ring, angle=0, angleNow=0, startTime;
+var turn = false;
+var clock = new THREE.Clock();
+var count = 1;
+init();
+animate();
+
+$("#bt1").click(function() {
+	turn = ! turn;
+  if (turn) {
+     startTime = clock.getElapsedTime();
+   }
+  else
+     angleNow = angle;
+});
+$("#bt2").click(function() {
+	if($("#bt2").val()=="Analog"){
+  	$("#bt2").val("Quartz");
+  }
+  else if($("#bt2").val()=="Quartz"){
+	  $("#bt2").val("sector");
+  }
+  else{
+  	$("#bt2").val("Analog");
+  }
+  
+});
+
+function init() {
+  renderer = new THREE.WebGLRenderer({
+    antialias: true
+  });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+  document.body.appendChild(renderer.domElement);
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+  camera.position.y = 200; // important
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  scene = new THREE.Scene();
+
+  stats = new Stats();
+  stats.domElement.style.position = 'absolute';
+  stats.domElement.style.bottom = '0px';
+  stats.domElement.style.zIndex = 100;
+  document.body.appendChild( stats.domElement );
+
+	var geometry = new THREE.BoxGeometry( 1, 45, 1 );
+  var material = new THREE.MeshBasicMaterial( {color:"black"} );
+  cube = new THREE.Mesh( geometry, material );
+	obj3d = new THREE.Object3D();
+  obj3d.add (cube);
+  cube.rotation.x = Math.PI/2;
+  cube.position.z = -20;
+  obj3d.position.x = 0;
+  scene.add (obj3d);
+  
+  geometry = new THREE.RingGeometry(1, 45, 32);
+  material = new THREE.MeshBasicMaterial({
+    color: 'white',
+    side: THREE.DoubleSide
+  });
+  ring = new THREE.Mesh(geometry, material);
+  scene.add (ring);
+  ring.rotation.x = Math.PI/2;
+  ring.rotation.y = Math.PI;
+  
+  geometry = new THREE.RingGeometry(45, 50, 32);
+  material = new THREE.MeshBasicMaterial({
+    color: 'black',
+    side: THREE.DoubleSide
+  });
+  ring2 = new THREE.Mesh(geometry, material);
+  scene.add (ring2);
+  ring2.rotation.x = Math.PI/2;
+  
+  geometry = new THREE.RingGeometry(1, 45, 32);
+  material = new THREE.MeshBasicMaterial({
+    color: 'red',
+    side: THREE.DoubleSide
+  });
+  ring3 = new THREE.Mesh(geometry, material);
+  scene.add (ring3);
+  ring3.rotation.x = Math.PI/2;
+  
+  window.addEventListener('resize',onWindowResize,false);
+
+}
+
+function animate() {
+  var count=1;
+  if (turn) {
+    var move = clock.getElapsedTime() - startTime;
+    angle = angleNow + move;
+    angle %= 60;
+    console.log(angle);
+  }
+  rotate();
+  
+  controls.update();
+  stats.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+function onWindowResize(){
+  var width = window.innerWidth;
+  var height = window.innerHeight;
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+}
+
+function rotate(){
+	if($("#bt2").val()=="Analog"){
+    
+  	cube.material.visible = true;
+  	obj3d.rotation.y = -angle*Math.PI/30;
+    ring.geometry = new THREE.RingGeometry (1, 45, 32, 2, -Math.PI/2,Math.PI*2);
+  	ring3.geometry = new THREE.RingGeometry (1, 45, 32, 2, -Math.PI/2,0);
+  }
+  else if($("#bt2").val()=="Quartz"){
+  	if(angle>count){
+    	count++;
+      count %= 60;
+    	obj3d.rotation.y = -angle*Math.PI/30;
+    }
+  }
+  else{
+  	cube.material.visible = false;
+    ring.geometry = new THREE.RingGeometry (1, 45, 32, 2, -Math.PI/2,(Math.PI*2)-angle*Math.PI/30);
+    ring3.geometry = new THREE.RingGeometry (1, 45, 32, 2, -Math.PI/2,angle*Math.PI/30);
+  }
+}
+
+</script>
+</body>
+
+</html>

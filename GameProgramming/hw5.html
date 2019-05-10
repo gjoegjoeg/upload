@@ -1,0 +1,436 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>three.js webgl - morphtargets - MD2 controls</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<style>
+		body {
+			color: #000;
+			font-family:Monospace;
+			font-size:13px;
+			text-align:center;
+			font-weight: bold;
+
+			background-color: #fff;
+			margin: 0px;
+			overflow: hidden;
+		}
+
+		#info {
+			position: absolute;
+			padding: 10px;
+			width: 100%;
+			text-align: center;
+			color: #000;
+		}
+
+		a { color: skyblue; }
+	</style>
+</head>
+
+<body>
+<div id="info">
+	<a href="http://threejs.org" target="_blank" rel="noopener">three.js</a> - MD2 Loader -
+	<br />
+	use arrows to control characters, mouse for camera
+	
+	<br>
+	<p id='msg'></p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/94/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+
+<script src='js/MD2Loader.js'></script>
+<script src='js/MorphBlendMesh.js'></script>
+<script src='js/MD2CharacterComplex.js'></script>
+<script src='js/Gyroscope.js'></script>
+<script>
+class MD2Wrapper {
+	constructor (config, controls, pos, scale = 1) {
+
+		this.md2 = new THREE.MD2CharacterComplex();
+		this.md2.scale = scale
+		this.md2.controls = controls
+		
+		this.md2.onLoadComplete = function () {
+			// here: 'this' is md2
+			
+			// cast and receive shadows
+			this.enableShadows( true );
+
+			this.setWeapon( 0 );
+			this.setSkin( 0 );
+
+			//this.root.position.copy (pos);
+			this.root.position.x = pos.x;
+			this.root.position.z = pos.z;
+			
+			// y is automatically set, accoording to scale ...				
+			//console.log ('y is ' + this.root.position.y)
+			
+			scene.add( this.root );
+						
+		}
+		this.md2.loadParts( config );
+					
+	}
+}
+
+
+	var SCREEN_WIDTH = window.innerWidth;
+	var SCREEN_HEIGHT = window.innerHeight;
+
+	var container, stats;
+	var camera, scene, renderer;
+
+	var ogroWrap;
+	var light;
+	
+	var box3, box3Helper;
+	
+	var cameraControls;
+	var clock = new THREE.Clock();
+	
+	var floors = [], end;
+	
+	init();
+	animate();
+    function makeFlag(){
+	  let flag = new THREE.Object3D();
+	  
+	  let geometry1 = new THREE.BoxBufferGeometry( 75, 50, 1);
+	  let material1 = new THREE.MeshPhongMaterial( {color:0xff0000} );
+	  let cube1 = new THREE.Mesh( geometry1, material1 );
+	  cube1.position.set(37, 75, 0)
+	  
+	  let geometry2 = new THREE.BoxBufferGeometry( 3, 100, 3);
+	  let material2 = new THREE.MeshPhongMaterial( {color:0x000000} );
+	  let cube2 = new THREE.Mesh( geometry2, material2 );
+	  cube2.position.set(0, 50, 0)
+	  
+	  flag.add(cube1, cube2)
+	  flag.position.set(500, 250, 0);
+	  scene.add( flag );
+	  return flag;
+	}
+	function makeFloor(x, y, z, x2, y2, z2){  // makeFloor(position, size)
+	  var geometry = new THREE.BoxBufferGeometry( x2, y2, z2);
+	  var material = new THREE.MeshPhongMaterial( {color:0x222222} );
+	  var cube = new THREE.Mesh( geometry, material );
+	  cube.position.set(x,y,z);
+	  scene.add( cube );
+	  return cube;
+	}
+	
+	function init() {
+
+		container = document.createElement( 'div' );
+		document.body.appendChild( container );
+
+		// CAMERA
+
+		camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 4000 );
+		camera.position.set( 0, 150, 1300 );
+
+		// SCENE
+
+		scene = new THREE.Scene();
+		scene.background = new THREE.Color( 0xffffff );
+		scene.fog = new THREE.Fog( 0xffffff, 1000, 4000 );
+
+		scene.add( camera );
+
+		// LIGHTS
+
+		scene.add( new THREE.AmbientLight( 0x222222 ) );
+
+		light = new THREE.DirectionalLight( 0xffffff, 2.25 );
+		light.position.set( 200, 450, 500 );
+
+		light.castShadow = true;
+
+		light.shadow.mapSize.width = 1024;
+		light.shadow.mapSize.height = 512;
+
+		light.shadow.camera.near = 100;
+		light.shadow.camera.far = 1200;
+
+		light.shadow.camera.left = -1000;
+		light.shadow.camera.right = 1000;
+		light.shadow.camera.top = 350;
+		light.shadow.camera.bottom = -350;
+
+		scene.add( light );
+		// scene.add( new THREE.CameraHelper( light.shadow.camera ) );
+
+
+		//  GROUND
+
+		//var gt = new THREE.TextureLoader().load( "grasslight-big.jpg" );
+		//var gt = new THREE.TextureLoader().load( "https://i.imgur.com/p8CRm9W.jpg");
+		var gt = new THREE.TextureLoader().load( "floor.jpg");
+		var gg = new THREE.PlaneBufferGeometry( 16000, 16000 );
+		var gm = new THREE.MeshPhongMaterial( { color: 0xffffff, map: gt } );
+
+		var ground = new THREE.Mesh( gg, gm );
+		ground.rotation.x = - Math.PI / 2;
+		ground.material.map.repeat.set( 64, 64 );
+		ground.material.map.wrapS = THREE.RepeatWrapping;
+		ground.material.map.wrapT = THREE.RepeatWrapping;
+		// note that because the ground does not cast a shadow, .castShadow is left false
+		ground.receiveShadow = true;
+
+		scene.add( ground );
+		
+		/*let axes = new THREE.AxesHelper (100)
+		scene.add (axes)*/
+
+		// RENDERER
+
+		renderer = new THREE.WebGLRenderer( { antialias: true } );
+		renderer.setPixelRatio( window.devicePixelRatio );
+		renderer.setSize( SCREEN_WIDTH, SCREEN_HEIGHT );
+		container.appendChild( renderer.domElement );
+
+		renderer.gammaInput = true;
+		renderer.gammaOutput = true;
+
+		renderer.shadowMap.enabled = true;
+		renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+
+		// EVENTS
+
+		window.addEventListener( 'resize', onWindowResize, false );
+		document.addEventListener( 'keydown', onKeyDown, false );
+		document.addEventListener( 'keyup', onKeyUp, false );
+
+		// CONTROLS
+
+		cameraControls = new THREE.OrbitControls( camera, renderer.domElement );
+		cameraControls.target.set( 0, 50, 0 );
+		cameraControls.update();
+
+		/////////////////////////////////////////////////////////////////////////////
+		// CHARACTER: ogro
+
+		let configOgro = {
+
+			baseUrl: "q2mdl/ogro/",
+
+			body: "Ogros.md2",
+			skins: [ "igdosh.png" ],
+			weapons:  [  ],
+
+			animations: {
+				move: "run",
+				idle: "stand",
+				jump: "jump"
+			},
+
+			walkSpeed: 350, //translation speed
+
+		};
+		let controls = {
+
+			moveForward: false,
+			moveBackward: false,
+			moveLeft: false,
+			moveRight: false
+
+		};
+
+		ogroWrap = new MD2Wrapper (configOgro, controls, new THREE.Vector3(0,0,0), 3 );
+		//console.log(ogroWrap)
+		var gyro = new THREE.Gyroscope();  
+		gyro.add( camera );
+	
+		gyro.add( light, light.target );
+		ogroWrap.md2.root.add( gyro );		
+		
+		box3 = new THREE.Box3();
+		/*box3Helper = new THREE.Box3Helper(box3)
+		scene.add ( box3Helper )*/
+		let floor = makeFloor(150, 25, 0, 100, 50, 150);
+		floors.push(floor);
+		floor = makeFloor(250, 50, 0, 100, 100, 150);
+		floors.push(floor);
+		floor = makeFloor(350, 75, 0, 100, 150, 150);
+		floors.push(floor);
+		floor = makeFloor(500, 125, 0, 200, 250, 200);
+		floors.push(floor);
+		end = makeFlag();
+	}
+
+	// EVENT HANDLERS
+
+	function floorHeight(x, z){
+	    if(x>100 && x<200 && z>-75 && z<75){
+	      return floors[0].geometry.parameters.height;
+		}
+		else if(x>200 && x<300 && z>-75 && z<75){
+		  return floors[1].geometry.parameters.height;
+		}
+		else if(x>300 && x<400 && z>-75 && z<75){
+	      return floors[2].geometry.parameters.height;
+		}
+		else if(x>400 && x<600 && z>-100 && z<100){
+		  return floors[3].geometry.parameters.height;
+		}
+		else 
+	      return 0;
+		
+	}
+	function groundLevel( x, y, z){
+	  let height = 72.75333023071289;
+	  if(x>100 && x<200 && z>-75 && z<75){
+	    return height + floorHeight(x, z);
+	  }
+	  else if(x>200 && x<300 && z>-75 && z<75){
+	    return height + floorHeight(x, z);
+	  }
+	  else if(x>300 && x<400 && z>-75 && z<75){
+	    return height + floorHeight(x, z);
+	  }
+	  else if(x>400 && x<600 && z>-100 && z<100){
+	    return height + floorHeight(x, z);
+	  }
+	  else 
+	    return height;
+	}
+	
+	function wall(pos, tmpPos){
+	  let height = 72;
+	  let tmpY = floorHeight(pos.x, pos.z) - floorHeight(tmpPos.x, tmpPos.z);
+	      if(tmpY>0){
+			 
+			  if(pos.x>200 && pos.x<300 && pos.z>-75 && pos.z<75){
+				if(tmpY > 50 )
+				  return true;
+				else 
+				  return false;
+			  }
+			  else if(pos.x>300 && pos.x<400 && pos.z>-75 && pos.z<75){
+				if(tmpY > 50)
+				  return true;
+				else 
+				  return false;
+			  }
+			  else if(pos.x>400 && pos.x<600 && pos.z>-100 && pos.z<100){
+				if(tmpY > 100|| ogroWrap.md2.activeAnimation != "jump")
+				  return true;
+				else 
+				  return false;
+			  }
+		}
+	 
+	    return false
+	}
+	function touchEnd(pos){
+	  if(pos.x>475 && pos.x<525 && pos.z>-25 && pos.z<25){
+		  ogroWrap.md2.root.position.set(0, 0, 0);
+	  }
+	}
+	function onWindowResize( event ) {
+
+		SCREEN_WIDTH = window.innerWidth;
+		SCREEN_HEIGHT = window.innerHeight;
+
+		renderer.setSize( SCREEN_WIDTH, SCREEN_HEIGHT );
+
+		camera.aspect = SCREEN_WIDTH/ SCREEN_HEIGHT;
+		camera.updateProjectionMatrix();
+
+	}
+
+	function onKeyDown ( event ) {
+
+		event.stopPropagation();
+		let controlsY = ogroWrap.md2.controls;
+
+		switch( event.keyCode ) {
+
+			case 38: /*up*/
+			case 87: /*W*/ 	controlsY.moveForward = true; break;
+
+			case 40: /*down*/
+			case 83: /*S*/ 	 controlsY.moveBackward = true; break;
+
+			case 37: /*left*/
+			case 65: /*A*/   controlsY.moveLeft = true; break;
+
+			case 39: /*right*/
+			case 68: /*D*/    controlsY.moveRight = true; break;
+
+			case 32: /*space*/ controlsY.jump = true; break;
+			// jump: should save the animation before jump
+			// return to that animation, when SPACE is up
+
+		}
+
+	}
+
+	function onKeyUp ( event ) {
+
+		event.stopPropagation();
+		let controlsY = ogroWrap.md2.controls;
+		
+		switch( event.keyCode ) {
+
+			case 38: /*up*/
+			case 87: /*W*/ controlsY.moveForward = false; break;
+
+			case 40: /*down*/
+			case 83: /*S*/ 	 controlsY.moveBackward = false; break;
+
+			case 37: /*left*/
+			case 65: /*A*/ 	 controlsY.moveLeft = false; break;
+
+			case 39: /*right*/
+			case 68: /*D*/ 	  controlsY.moveRight = false; break;
+
+			case 32: /*space*/ controlsY.jump = false; break;
+			// jump: should save the animation before jump
+			// return to that animation, when SPACE is up
+
+		}
+
+	}
+
+	//
+
+	function animate() {
+		let tmpPos = ogroWrap.md2.root.position.clone();
+		requestAnimationFrame( animate );
+		render();
+		
+	    if(wall(ogroWrap.md2.root.position, tmpPos)){
+	  	  ogroWrap.md2.root.position.copy(tmpPos);
+		  
+	    }
+		ogroWrap.md2.root.position.y = groundLevel (ogroWrap.md2.root.position.x, ogroWrap.md2.root.position.y, ogroWrap.md2.root.position.z)
+		
+		touchEnd(ogroWrap.md2.root.position);
+		
+	}
+
+	function render() {
+	
+		box3.setFromObject (ogroWrap.md2.root)
+		
+		var delta = clock.getDelta();
+		if (ogroWrap.md2) {
+			ogroWrap.md2.update (delta)
+		}
+		renderer.render( scene, camera );
+
+	}
+
+</script>
+
+</body>
+</html>
